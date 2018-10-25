@@ -11,11 +11,14 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
-#####
-#Gregory Clarke
-#10/22/2018
-#Advanced Computer Programming
 '''
+""" 
+    This is a travel program where you can log your travels and add notes to each log.
+"""
+
+#Gregory Clarke
+#Advanced Computer Programming
+#10/24/2018
 
 
 from tkinter import *
@@ -23,13 +26,14 @@ from tkinter import ttk
 
 
 class App:
-    def __init__(self, master=None):
-        self.frame = Frame(root)
-        self.master = master
+    def __init__(self):
+        self.content = Frame(root)
 
-        self.items = Listbox(self.frame, height=10, width=25)
+        self.countries = Label(self.content, text="Countries")
+        self.items = Listbox(self.content, height=10, selectmode="SINGLE",
+                             exportselection=FALSE)  # listbox for items on sale
         self.items.bind("<<ListboxSelect>>")
-        for x in ["Argentina","Australia","Austria","Brazil","Canada","China","Croatia","Cuba","Czech Republic",
+        for b in ["Argentina","Australia","Austria","Brazil","Canada","China","Croatia","Cuba","Czech Republic",
                   "Denmark","Egypt","Estonia","Ethiopia","Finland","France","Germany","Great Britain",
                   "Greece","Hungary","Iceland","India","Indonesia","Jamaica","Japan","Jordan","Kenya","North Korea",
                   "South Korea","Latvia","Lebanon","Liberia","Libya","Madagascar","Malaysia","Maldives","Mexico",
@@ -37,99 +41,132 @@ class App:
                   "Puerto Rico","Russia","Saudi Arabia","Singapore","Slovak Republic (Slovakia)","South Africa",
                   "Spain","Sri Lanka","Sweden","Switzerland","Thailand","Netherlands","Ukraine","United Arab Emirates",
                   "United States of America","Vietnam"]:
-            self.items.insert(END, x)
+            self.items.insert(END, b)  # Adds values to listbox
 
-            self.spin = StringVar()
-            self.spinx = StringVar()
-            self.w = Spinbox(self.frame, values=("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"), textvariable=self.spin, wrap=True, width=15, state="readonly")
-            self.z = Spinbox(self.frame, values=("Air", "Train", "Car"), textvariable=self.spinx, wrap=True, width=15, state="readonly")
+        self.bar = ttk.Scrollbar(self.content, orient=VERTICAL, command=self.items.yview)
+        self.items.configure(yscrollcommand=self.bar.set)  # attaches scrollbar to listbox
 
-        #scrollbar
-        self.s = ttk.Scrollbar(self.frame, orient=VERTICAL, command=self.items.yview)
-        self.items.configure(yscrollcommand=self.s.set)
+        self.write = Text(self.content, width=14, height=10, wrap=WORD)  # textbox
+        self.write.bind("<FocusIn>")
+        self.textshow = Label(self.content, text="Description")  # label for textbox
+        self.limit = Label(self.content, text="")
 
-        #notes
-        self.t = Text(self.frame, width=20, height=10, wrap=WORD)
-        self.textshow = Label(self.frame, text="Notes")
+        self.spinvallabel = Label(self.content, text="Month")
+        self.spinval = StringVar()
+        self.s = Spinbox(self.content, values=(
+        "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November",
+        "December"), textvariable=self.spinval, wrap=True, width=22, state="readonly")
 
-        #buttons
-        self.submit = ttk.Button(self.frame, text="Submit", command=self.fileWrite)
-        self.clear = ttk.Button(self.frame, text="Clear", command=self.clr)
+        self.show = Label(self.content, text="Transportation")  # label for combobox
+        self.choosevalue = StringVar()  # value for combobox
+        self.choosevalue.set("")
+        self.box = ttk.Combobox(self.content, state="readonly", textvariable=self.choosevalue)
+        self.box["values"] = ["Air", "Train", "Car"]  # Types of transportation
+        self.box.bind("<<ComboboxSelected>>")  # applies selected value
 
-        #sizegrip
-        self.size = ttk.Sizegrip(self.frame)
+        self.submitbutton = Button(self.content, text="Submit", command=self.submit)  # buttons to submit and clear
+        self.clear = Button(self.content, text="Clear", command=self.clear)
 
+        self.menubar = Menu(root)  # menubar
+        self.filemenu = Menu(self.menubar, tearoff=0)
+        self.menubar.add_cascade(label="File", menu=self.filemenu)  # creates option in menubar
+        self.filemenu.add_command(label="Save", command=self.submit)  # options in file
+        self.filemenu.add_command(label="Exit", command=root.quit)
 
-        #Gridding
-        self.frame.grid(column=0, row=0, sticky=NSEW)
-        self.items.grid(column=0, row=0, rowspan=2, padx=(20, 0), pady=(20,0)) #listbox
-        self.s.grid(column=1, row=0, rowspan=2, sticky=NS, padx=(0, 30)) #scrollbar
-        self.z.grid(column=3, row=3, pady=(5, 10)) #transportation
-        self.w.grid(column=3, row=2, pady=(15, 10)) #month
-        self.textshow.grid(column=2, row=0, sticky=NS) #textlabel
-        self.t.grid(column=2, row=1, padx=(10,10)) #notes
-        self.submit.grid(column=3, row=1,sticky=N) #submit
-        self.clear.grid(column=3, row=1) #clear
-        self.size.grid(column=999, row=999)
-        self.size.columnconfigure(0, weight=1)
-        self.size.rowconfigure(0, weight=1)
-        self.wLabel = Label(self.frame, text="")
-        self.wLabel.grid(column=3, row=0)
-        self.init_window()
+        self.error = Label(self.content)  # label for errors
 
-    def fileWrite(self):
-        values = [self.items.get(idx) for idx in self.items.curselection()]
-        with open("travel_log", "a") as file:
-            if self.t != "" and values != "" and self.z != "" and self.w != "":
-                file.write(str(values) + "***" + self.z.get() + "***" + self.w.get() + "***" + self.t.get("1.0", END) + "\n")
-                self.works()
+        self.menubar2 = Menu(root)  # second menu for "help"
+        self.helpmenu = Menu(self.menubar2, tearoff=0)
+        self.menubar.add_cascade(label="Help", menu=self.helpmenu)  # creates option in menubar
+        self.helpmenu.add_command(label="About", command=self.new)  # option in help
+        root.config(menu=self.menubar)
 
-            else:
-                self.wLabel.config("Error")
+        self.grip_frame = Frame(root)
 
-    def works(self):
-        self.wLabel.config(text="Log Successful")
-        self.clr()
+        self.size = ttk.Sizegrip(self.grip_frame)
 
-    def clr(self):
-        self.items.selection_clear(0, END)
-        self.z.config()
-        self.w.config()
-        self.t.delete("1.0", END)
+        self.content.grid(column=0, row=0)  # grids widgets
+        self.error.grid(column=3, row=4, sticky=N)
+        self.countries.grid(column=0, row=0)
+        self.items.grid(column=0, row=0, rowspan=4, sticky=NS)
+        self.box.grid(column=3, row=1, sticky=N, padx=(10, 0))  # grid for items/combobox
+        self.bar.grid(column=1, row=0, rowspan=4, sticky=NS, padx=(0, 20))
+        self.write.grid(column=2, row=1, rowspan=3)  # textbox grid
+        self.limit.grid(column=2, row=4)
+        self.textshow.grid(column=2, row=0)
+        self.spinvallabel.grid(column=3, row=1, sticky=S, pady=(15, 0))
+        self.s.grid(column=3, row=2, sticky=N, pady=(0, 15), padx=(12, 0))
+        self.show.grid(column=3, row=0)
+        self.submitbutton.grid(column=3, row=2, sticky=S, pady=(15, 5))
+        self.clear.grid(column=3, row=3, sticky=N, pady=0)
+        self.size.grid(column=999, row=999, sticky=NSEW)
+        self.grip_frame.grid(column=999, row=999)
 
-    def init_window(self):
-        # create a toplevel menu
-        self.menubar = Menu(self.master)
-        file = Menu(self.menubar, tearoff=0)
-        file.add_command(label="Exit", command=root.destroy)
-        file.add_command(label="Save", command=self.fileWrite)
-        self.menubar.add_cascade(label="File", menu=file)
+        root.columnconfigure(0, weight=1)  # weight for rows and columns
+        root.rowconfigure(0, weight=1)
+        root.minsize(450, 250)
+        self.grip_frame.columnconfigure(999, weight=1)
+        self.grip_frame.rowconfigure(999, weight=1)
 
-        help = Menu(self.menubar, tearoff=0)
-        help.add_command(label="Help", command=self.help_window)
-        self.menubar.add_cascade(label="Help", menu=help)
+    def clear(self):  # clears all widgets
+        self.write.delete("1.0", END)
+        self.spinval.set("January")
+        self.choosevalue.set("")
+        self.items.bind(self.items.selection_clear(0, END))
+        self.error.config(text="")
+        self.limit.config(text="")
 
-        # display the menu
-        self.master.config(menu=self.menubar)
+    def submit(self):  # submits values to file
+        z = 0
+        values = [self.items.get(idx) for idx in self.items.curselection()]  # gets all values
+        textvalue = self.write.get("1.0", 'end-1c')
+        count = len(textvalue)
+        if count > 500:  # checks for max amount of characters
+            z = 1
+            self.error.config(text="Error")
+            self.limit.config(text=("Over 500 characters\n" + str(count) + " characters"))
+        month = self.spinval.get()
+        transport = self.choosevalue.get()
+        if any(x in "abcdefghijklmnopqrstuvwxyz" for x in textvalue):  # checks for letters in textbox
+            self.x = []  # puts all values in list
+            textvalue = textvalue.replace("\n", "*")
+            textvalue = textvalue.replace(" ", "^")
+            self.x.append(values[0])
+            self.x.append(textvalue)
+            self.x.append(month)
+            self.x.append(transport)
+            for y in self.x:  # runs through all values
+                if y == "" or y == 0 or y == []:  # checks for empty inputs
+                    self.error.config(text="Error")
+                    z = 1
+        else:  # if no letters in input
+            z = 1
+            self.error.config(text="Error")
+        if z == 0:  # no errors
+            str1 = ' '.join(str(e) for e in self.x)  # turns values into string
+            file = open("travel_log.txt", "a")
+            file.write(str1)  # writes values to file
+            file.write("\n")
+            file.close()
+            self.write.delete("1.0", END)  # clears all boxes
+            self.spinval.set("January")
+            self.choosevalue.set("")
+            self.items.bind(self.items.selection_clear(0, END))
+            self.error.config(text="Submitted")
+            self.limit.config(text="")
 
-    def help_window(self):
-        self.top = Toplevel()
-        self.top.title("Help")
-        self.msg = Message(self.top, text="Travel Program", width=200)
-        self.msg.grid(column=0, row=0, padx=(10,10))
-
-        self.msg1 = Message(self.top, text="Version 1.0", width=200)
-        self.msg1.grid(column=0, row=1, padx=(10, 10))
-
-        self.msg2 = Message(self.top, text="Gregory Clarke", width=200)
-        self.msg2.grid(column=0, row=2, padx=(10, 10))
-
-        self.button = Button(self.top, text="Dismiss", command=self.top.destroy)
-        self.button.grid(column=0, row=3, padx=(10,10), pady=(0, 10))
+    def new(self):  # makes new top level for about
+        top = Toplevel(root, padx=15, pady=15)
+        top.title("About")
+        msg = Message(top, text="Travel Log\nVersion 1.1\nGregory Clarke", width=100)
+        msg.pack()
+        button = Button(top, text="Close", command=top.destroy)
+        button.pack()
+        top.resizable(width=False, height=False)
 
 
 root = Tk()
-app = App(root)
+app = App()
 root.title("Travel Log")
 root.mainloop()
 root.destroy()
